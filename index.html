@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- ... (keep the existing head content) ... -->
     <meta charset="UTF-8">
-    <title>Webcam Fullscreen with Object Detection and FPS</title>
+    <title>Webcam Fullscreen with Object Detection, FPS, and Draggable Elements</title>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     <style>
-        /* ... (keep the existing styles) ... */
         body, html {
             margin: 0;
             padding: 0;
@@ -22,10 +20,13 @@
             height: 100vh;
             object-fit: cover;
         }
-        #sliderContainer {
+        .draggable {
             position: absolute;
+            cursor: move;
+        }
+        #sliderContainer {
             top: 10px;
-            right: 10px;
+            left: calc(100% - 180px); /* Initially position from the left based on its width */
             background: rgba(0, 0, 0, 0.5);
             padding: 10px;
             border-radius: 5px;
@@ -40,7 +41,6 @@
             font-size: 14px;
         }
         #messageContainer {
-            position: absolute;
             bottom: 10px;
             left: 10px;
             width: 400px;
@@ -55,13 +55,8 @@
             opacity: 1;
             transition: opacity 1s ease-out;
             position: absolute;
-            /* width: 280px; /* Fixed width for each message */
-            /* height: 40px; */
-            /* box-sizing: border-box; */
         }
-        /* ... (keep other existing styles) ... */
         #detectionCanvas {
-            position: absolute;
             top: 10px;
             left: 10px;
             border: 2px solid white;
@@ -77,19 +72,18 @@
     </style>
 </head>
 <body>
-    <!-- ... (keep the existing body content) ... -->
-    <div id="sliderContainer">
+    <div id="sliderContainer" class="draggable">
         <label for="brightnessSlider">Brightness</label>
         <input type="range" id="brightnessSlider" min="0" max="200" value="100">
     </div>
-    <div id="messageContainer"></div>
+    <div id="messageContainer" class="draggable"></div>
     <video id="videoElement" autoplay></video>
-    <canvas id="detectionCanvas" width="320" height="240"></canvas>
+    <canvas id="detectionCanvas" class="draggable" width="320" height="240"></canvas>
     <canvas id="fullscreenCanvas"></canvas>
-     
 
     <script>
-        // ... (keep other existing functions) ...
+        // ... (keep all the existing JavaScript code) ...
+                // ... (keep other existing functions) ...
         let videoElement, detectionCanvas, detectionCtx, fullscreenCanvas, fullscreenCtx;
         let lastDetectionTime = 0, lastFullscreenTime = 0;
         let detectionFPS = 0, fullscreenFPS = 0;
@@ -132,7 +126,7 @@
             resizeFullscreenCanvas();
             window.addEventListener('resize', resizeFullscreenCanvas);
 
-            const model = await ort.InferenceSession.create("yolov8n.onnx");
+            const model = await ort.InferenceSession.create("yolov8n_quant.onnx");
 
 
             async function detectObjects() {
@@ -370,11 +364,56 @@
         ];
         // Remove the setupTimer function as it's no longer needed
 
+        // Add this new function for draggable elements
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            element.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                // Update position based on left and top
+                let newTop = element.offsetTop - pos2;
+                let newLeft = element.offsetLeft - pos1;
+                
+                // Ensure the element stays within the viewport
+                newTop = Math.max(0, Math.min(window.innerHeight - element.offsetHeight, newTop));
+                newLeft = Math.max(0, Math.min(window.innerWidth - element.offsetWidth, newLeft));
+                
+                element.style.top = newTop + "px";
+                element.style.left = newLeft + "px";
+                
+                // Remove right positioning if it exists
+                element.style.right = 'auto';
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
         window.onload = async () => {
             await setupWebcam();
             setupBrightnessSlider();
-            // Remove setupTimer() call
             await setupObjectDetection();
+
+            // Make elements draggable
+            const draggableElements = document.querySelectorAll('.draggable');
+            draggableElements.forEach(elem => makeDraggable(elem));
         };
     </script>
 </body>
