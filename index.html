@@ -126,7 +126,8 @@
             resizeFullscreenCanvas();
             window.addEventListener('resize', resizeFullscreenCanvas);
 
-            const model = await ort.InferenceSession.create("yolov8n_quant.onnx");
+            const model = await ort.InferenceSession.create("yolov5nu_quant.onnx");
+            console.log("yolov5nu_quant.onnx");
 
 
             async function detectObjects() {
