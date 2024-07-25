@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Webcam Fullscreen with Object Detection, FPS, and Draggable Elements</title>
+    <title>Webcam Fullscreen with Object Detection and FPS</title>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     <style>
         body, html {
@@ -20,13 +20,10 @@
             height: 100vh;
             object-fit: cover;
         }
-        .draggable {
-            position: absolute;
-            cursor: move;
-        }
         #sliderContainer {
+            position: absolute;
             top: 10px;
-            left: calc(100% - 180px); /* Initially position from the left based on its width */
+            right: 10px;
             background: rgba(0, 0, 0, 0.5);
             padding: 10px;
             border-radius: 5px;
@@ -41,6 +38,7 @@
             font-size: 14px;
         }
         #messageContainer {
+            position: absolute;
             bottom: 10px;
             left: 10px;
             width: 400px;
@@ -56,11 +54,6 @@
             transition: opacity 1s ease-out;
             position: absolute;
         }
-        #detectionCanvas {
-            top: 10px;
-            left: 10px;
-            border: 2px solid white;
-        }
         #fullscreenCanvas {
             position: absolute;
             top: 0;
@@ -72,21 +65,18 @@
     </style>
 </head>
 <body>
-    <div id="sliderContainer" class="draggable">
+    <div id="sliderContainer">
         <label for="brightnessSlider">Brightness</label>
         <input type="range" id="brightnessSlider" min="0" max="200" value="100">
     </div>
-    <div id="messageContainer" class="draggable"></div>
+    <div id="messageContainer"></div>
     <video id="videoElement" autoplay></video>
-    <canvas id="detectionCanvas" class="draggable" width="320" height="240"></canvas>
     <canvas id="fullscreenCanvas"></canvas>
 
     <script>
-        // ... (keep all the existing JavaScript code) ...
-                // ... (keep other existing functions) ...
-        let videoElement, detectionCanvas, detectionCtx, fullscreenCanvas, fullscreenCtx;
-        let lastDetectionTime = 0, lastFullscreenTime = 0;
-        let detectionFPS = 0, fullscreenFPS = 0;
+        let videoElement, fullscreenCanvas, fullscreenCtx;
+        let lastDetectionTime = 0;
+        let detectionFPS = 0;
 
         async function setupWebcam() {
             videoElement = document.getElementById("videoElement");
@@ -110,17 +100,12 @@
         function setupBrightnessSlider() {
             const slider = document.getElementById("brightnessSlider");
             slider.addEventListener("input", () => {
-                const brightnessValue = slider.value;
+                const brightnessValue = slider.value;l
                 videoElement.style.filter = `brightness(${brightnessValue}%)`;
             });
         }
 
-
         async function setupObjectDetection() {
-            // ... (keep existing setup code) ...
-            detectionCanvas = document.getElementById("detectionCanvas");
-            detectionCtx = detectionCanvas.getContext("2d");
-
             fullscreenCanvas = document.getElementById("fullscreenCanvas");
             fullscreenCtx = fullscreenCanvas.getContext("2d");
             resizeFullscreenCanvas();
@@ -128,7 +113,6 @@
 
             const model = await ort.InferenceSession.create("yolov5nu_quant.onnx");
             console.log("yolov5nu_quant.onnx");
-
 
             async function detectObjects() {
                 const now = performance.now();
@@ -140,7 +124,6 @@
                 const boxes = process_output(output, img_width, img_height);
                 drawDetections(boxes);
                 
-                // Display detected objects in message
                 if (boxes.length > 0) {
                     showDetectionMessage(boxes);
                 }
@@ -148,79 +131,22 @@
                 requestAnimationFrame(detectObjects);
             }
 
-            // ... (keep other existing functions) ...
-            function updateFullscreenFPS() {
-                const now = performance.now();
-                fullscreenFPS = 1000 / (now - lastFullscreenTime);
-                lastFullscreenTime = now;
-
-                fullscreenCtx.clearRect(0, 0, fullscreenCanvas.width, fullscreenCanvas.height);
-                fullscreenCtx.font = "24px Arial";
-                fullscreenCtx.fillStyle = "yellow";
-                fullscreenCtx.fillText(`Full Screen FPS: ${fullscreenFPS.toFixed(2)}`,fullscreenCanvas.width/2 , 30);
-
-                requestAnimationFrame(updateFullscreenFPS);
-            }
-            
-
             detectObjects();
-            updateFullscreenFPS();
         }
-
-        // function showDetectionMessage(label, confidence) {
-        //     const messageContainer = document.getElementById("messageContainer");
-        //     const message = document.createElement("div");
-        //     message.className = "message";
-        //     message.textContent = `Detected ${label} with a confidence of ${confidence.toFixed(2)}`;
-
-        //     messageContainer.prepend(message);
-        //     updateMessagePositions();
-
-        //     if (messageContainer.children.length > 4) {
-        //         const lastChild = messageContainer.lastChild;
-        //         lastChild.style.opacity = 0;
-        //         setTimeout(() => {
-        //             lastChild.remove();
-        //         }, 1000);
-        //     }
-        // }
-
-
-        // function updateMessagePositions() {
-        //     const messages = document.querySelectorAll('.message');
-        //     const offsetStep = 20;
-        //     const maxVisibleMessages = 4;
-
-        //     messages.forEach((message, index) => {
-        //         message.style.bottom = `${(messages.length - 1 - index) * offsetStep}px`;
-        //         console.log(messages.length);
-        //         console.log(index);
-        //         console.log(offsetStep, "\n");
-        //         message.style.left = `${10 + (index * 15)}px`;
-        //         message.style.zIndex = maxVisibleMessages - index;
-        //         message.style.opacity = 1 - (index * 0.3);
-        //     });
-        // }
 
         function showDetectionMessage(boxes) {
             const messageContainer = document.getElementById("messageContainer");
             const message = document.createElement("div");
             message.className = "message";
-
-            // Create a message for up to 3 detected objects
             const detectionTexts = boxes.slice(0, 3).map(([,,,,label, prob]) => 
                 `${label} (${prob.toFixed(2)})`
             );
-
             message.innerHTML = `Detected: ${detectionTexts.join(', ')}`;
             if (boxes.length > 3) {
                 message.innerHTML += `, and ${boxes.length - 3} more`;
             }
-
             messageContainer.prepend(message);
             updateMessagePositions();
-
-            // Remove excess messages
             const messages = messageContainer.getElementsByClassName('message');
             while (messages.length > 4) {
                 messageContainer.removeChild(messages[messages.length - 1]);
@@ -231,7 +157,6 @@
             const messages = document.querySelectorAll('.message');
             const offsetStep = 20;
             const maxVisibleMessages = 4;
-
             messages.forEach((message, index) => {
                 message.style.bottom = `${(messages.length - 1 - index) * offsetStep}px`;
                 message.style.left = `${10 + (index * 15)}px`;
@@ -244,6 +169,7 @@
             fullscreenCanvas.width = window.innerWidth;
             fullscreenCanvas.height = window.innerHeight;
         }
+
         async function prepare_input(videoElement) {
             const canvas = document.createElement("canvas");
             canvas.width = 640;
@@ -252,7 +178,6 @@
             ctx.drawImage(videoElement, 0, 0, 640, 640);
             const imgData = ctx.getImageData(0, 0, 640, 640);
             const pixels = imgData.data;
-
             const red = [], green = [], blue = [];
             for (let index = 0; index < pixels.length; index += 4) {
                 red.push(pixels[index] / 255.0);
@@ -262,6 +187,58 @@
             const input = [...red, ...green, ...blue];
             return [input, videoElement.videoWidth, videoElement.videoHeight];
         }
+
+        async function prepare_Myinput(videoElement, select = 4) {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                // Dimensions of each tile
+                const tileWidth = 640;
+                const tileHeight = 640;
+
+                // Total number of tiles horizontally and vertically
+                const tilesHorizontally = Math.ceil(videoElement.videoWidth / tileWidth);
+                const tilesVertically = Math.ceil(videoElement.videoHeight / tileHeight);
+
+                // Calculate total number of tiles
+                const totalTiles = tilesHorizontally * tilesVertically;
+
+                // Ensure select is within the valid range
+                if (select >= totalTiles) {
+                    throw new Error(`Select value ${select} is out of range. Max value is ${totalTiles - 1}.`);
+                }
+
+                // Calculate the tile's position based on the select value
+                const tileRow = Math.floor(select / tilesHorizontally);
+                const tileCol = select % tilesHorizontally;
+
+                // Set canvas size to match the tile size
+                canvas.width = tileWidth;
+                canvas.height = tileHeight;
+
+                // Draw the specific tile onto the canvas
+                ctx.drawImage(videoElement, tileCol * tileWidth, tileRow * tileHeight, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight);
+
+                // Extract the image data from the canvas
+                const imgData = ctx.getImageData(0, 0, tileWidth, tileHeight);
+                const pixels = imgData.data;
+
+                // Normalize the pixels and separate the channels
+                const red = [], green = [], blue = [];
+                for (let index = 0; index < pixels.length; index += 4) {
+                    red.push(pixels[index] / 255.0);
+                    green.push(pixels[index + 1] / 255.0);
+                    blue.push(pixels[index + 2] / 255.0);
+                }
+
+                // Combine the channels into a single array
+                const input = [...red, ...green, ...blue];
+
+                return [input, videoElement.videoWidth, videoElement.videoHeight];
+            }
+
+
+        
 
         async function run_model(model, input) {
             const tensor = new ort.Tensor(Float32Array.from(input), [1, 3, 640, 640]);
@@ -289,7 +266,6 @@
                 const y2 = (yc + h / 2) / 640 * img_height;
                 boxes.push([x1, y1, x2, y2, label, prob]);
             }
-
             boxes = boxes.sort((box1, box2) => box2[5] - box1[5]);
             const result = [];
             while (boxes.length > 0) {
@@ -322,35 +298,29 @@
         }
 
         function drawDetections(boxes) {
-            detectionCtx.clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
-            detectionCtx.drawImage(videoElement, 0, 0, detectionCanvas.width, detectionCanvas.height);
-
-            detectionCtx.strokeStyle = "#00FF00";
-            detectionCtx.lineWidth = 2;
-            detectionCtx.font = "12px Arial";
-
-            const scaleX = detectionCanvas.width / videoElement.videoWidth;
-            const scaleY = detectionCanvas.height / videoElement.videoHeight;
-
+            fullscreenCtx.clearRect(0, 0, fullscreenCanvas.width, fullscreenCanvas.height);
+            fullscreenCtx.strokeStyle = "#00FF00";
+            fullscreenCtx.lineWidth = 2;
+            fullscreenCtx.font = "24px Arial";
+            const scaleX = fullscreenCanvas.width / videoElement.videoWidth;
+            const scaleY = fullscreenCanvas.height / videoElement.videoHeight;
             boxes.forEach(([x1, y1, x2, y2, label, prob]) => {
                 const boxX = x1 * scaleX;
                 const boxY = y1 * scaleY;
                 const boxWidth = (x2 - x1) * scaleX;
                 const boxHeight = (y2 - y1) * scaleY;
-
-                detectionCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-                detectionCtx.fillStyle = "#00FF00";
+                fullscreenCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+                fullscreenCtx.fillStyle = "#00FF00";
                 const text = `${label} (${prob.toFixed(2)})`;
-                const textWidth = detectionCtx.measureText(text).width;
-                detectionCtx.fillRect(boxX, boxY - 20, textWidth + 4, 20);
-                detectionCtx.fillStyle = "#000000";
-                detectionCtx.fillText(text, boxX + 2, boxY - 5);
+                const textWidth = fullscreenCtx.measureText(text).width;
+                fullscreenCtx.fillRect(boxX, boxY - 30, textWidth + 4, 30);
+                fullscreenCtx.fillStyle = "#000000";
+                fullscreenCtx.fillText(text, boxX + 2, boxY - 5);
             });
-
-            // Draw FPS for detection canvas
-            detectionCtx.font = "15px Arial";
-            detectionCtx.fillStyle = "green";
-            detectionCtx.fillText(`Detection FPS: ${detectionFPS.toFixed(2)}`, detectionCanvas.width/2, 20);
+            // Draw FPS for fullscreen canvas
+            fullscreenCtx.font = "24px Arial";
+            fullscreenCtx.fillStyle = "yellow";
+            fullscreenCtx.fillText(`Detection FPS: ${detectionFPS.toFixed(2)}`, fullscreenCanvas.width/2, 30);
         }
 
         const yolo_classes = [
@@ -363,58 +333,11 @@
             'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven',
             'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
         ];
-        // Remove the setupTimer function as it's no longer needed
 
-        // Add this new function for draggable elements
-        function makeDraggable(element) {
-            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-            element.onmousedown = dragMouseDown;
-
-            function dragMouseDown(e) {
-                e = e || window.event;
-                e.preventDefault();
-                pos3 = e.clientX;
-                pos4 = e.clientY;
-                document.onmouseup = closeDragElement;
-                document.onmousemove = elementDrag;
-            }
-
-            function elementDrag(e) {
-                e = e || window.event;
-                e.preventDefault();
-                pos1 = pos3 - e.clientX;
-                pos2 = pos4 - e.clientY;
-                pos3 = e.clientX;
-                pos4 = e.clientY;
-                
-                // Update position based on left and top
-                let newTop = element.offsetTop - pos2;
-                let newLeft = element.offsetLeft - pos1;
-                
-                // Ensure the element stays within the viewport
-                newTop = Math.max(0, Math.min(window.innerHeight - element.offsetHeight, newTop));
-                newLeft = Math.max(0, Math.min(window.innerWidth - element.offsetWidth, newLeft));
-                
-                element.style.top = newTop + "px";
-                element.style.left = newLeft + "px";
-                
-                // Remove right positioning if it exists
-                element.style.right = 'auto';
-            }
-
-            function closeDragElement() {
-                document.onmouseup = null;
-                document.onmousemove = null;
-            }
-        }
         window.onload = async () => {
             await setupWebcam();
             setupBrightnessSlider();
             await setupObjectDetection();
-
-            // Make elements draggable
-            const draggableElements = document.querySelectorAll('.draggable');
-            draggableElements.forEach(elem => makeDraggable(elem));
         };
     </script>
 </body>
